@@ -5,7 +5,7 @@ def lambda_handler(event, context):
 
     # Create SQS client
     sqs = boto3.client('sqs')
-    queue_url = 'https://sqs.us-east-1.amazonaws.com/064835158060/sqs-pedidos'
+    queue_url = 'https://sqs.us-east-1.amazonaws.com/064835158060/sqs-pedidos-2'
     
     # Receive message from SQS queue
     response = sqs.receive_message(
@@ -19,7 +19,7 @@ def lambda_handler(event, context):
     messages = response.get('Messages', [])
     pedidos = []
     dynamodb = boto3.resource('dynamodb')
-    table = dynamodb.Table('t_pedidos_procesados')
+    table = dynamodb.Table('t_pedidos_procesados2')
 
     for message in messages:
         pedido = json.loads(message['Body'])
