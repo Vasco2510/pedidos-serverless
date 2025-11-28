@@ -1,42 +1,22 @@
 org: ieeeutec
-service: api-pedidos2-service # Nuevo nombre de servicio para esta arquitectura
+service: api-pedidos2-service
 
 provider:
   name: aws
   runtime: python3.12
   timeout: 30
-  region: us-east-1 # Es una buena práctica definir explícitamente la región
-  # El rol IAM que proporcionaste se usará para todas las Lambdas
+  region: us-east-1
   iam:
     role: arn:aws:iam::064835158060:role/LabRole
-    # Define políticas adicionales para el rol LabRole para que las Lambdas
-    # puedan interactuar con SQS y DynamoDB.
-    # Nota: Este rol debe existir previamente en tu cuenta.
-    statements:
-      - Effect: Allow
-        Action:
-          - sqs:SendMessage
-        Resource: !GetAtt PedidosQueue.Arn # Permiso para que RegistrarPedido2 envíe a la cola
-      - Effect: Allow
-        Action:
-          - sqs:ReceiveMessage
-          - sqs:DeleteMessage
-        Resource: !GetAtt PedidosQueue.Arn # Permiso para que ProcesarPedido2 lea/borre de la cola
-      - Effect: Allow
-        Action:
-          - dynamodb:PutItem
-        Resource: !GetAtt PedidosProcesadosTable.Arn # Permiso para que ProcesarPedido2 escriba en DynamoDB
 
 resources:
   Resources:
-    # 1. Recurso Amazon SQS Queue
     PedidosQueue:
       Type: AWS::SQS::Queue
       Properties:
         QueueName: sqs-pedidos-2
-        VisibilityTimeout: 60 # Tiempo de visibilidad para mensajes de SQS
+        VisibilityTimeout: 60
 
-    # 2. Recurso DynamoDB Table
     PedidosProcesadosTable:
       Type: AWS::DynamoDB::Table
       Properties:
@@ -51,33 +31,25 @@ resources:
             KeyType: HASH
           - AttributeName: pedido_id
             KeyType: RANGE
-        ProvisionedThroughput:
-          ReadCapacityUnits: 5
-          WriteCapacityUnits: 5
+        BillingMode: PAY_PER_REQUEST
 
 functions:
-  # Lambda para registrar el pedido (publicar a SQS)
   RegistrarPedido2:
-    handler: RegistrarPedido.lambda_handler # Asume que el código está en un archivo 'RegistrarPedido.py'
+    handler: RegistrarPedido.lambda_handler
     events:
       - http:
           path: peds/registrar
           method: post
-          cors: true # Habilita CORS para el API Gateway
+          cors: true
 
-  # Lambda para procesar el pedido (leer de SQS y escribir en DynamoDB)
   ProcesarPedido2:
-    handler: ProcesarPedido.lambda_handler # Asume que el código está en un archivo 'ProcesarPedido.py'
+    handler: ProcesarPedido.lambda_handler
     events:
-      # Evento para la API Gateway (sería solo para un test o invocación manual)
       - http:
           path: peds/procesar
           method: get
-          cors: true # Habilita CORS para el API Gateway
-
-      # Evento principal: La Lambda se dispara al haber mensajes en SQS
+          cors: true
       - sqs:
           arn: !GetAtt PedidosQueue.Arn
-          batchSize: 10 # Procesa hasta 10 mensajes a la vez
+          batchSize: 10
           enabled: true
-          # Este es el mecanismo asíncrono y desacoplado
